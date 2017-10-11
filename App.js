@@ -3,7 +3,7 @@ import { StyleSheet, Text, View, TextInput, Button } from 'react-native';
 import SocketIOClient from 'socket.io-client';
 import {GiftedChat} from 'react-native-gifted-chat';
 import KeyboardSpacer from 'react-native-keyboard-spacer';
-import {checkWord, suggestWords} from './api'
+import {checkWord, suggestWords, getDefition} from './api'
 
 export default class App extends React.Component {
   constructor(props) {
@@ -99,6 +99,9 @@ export default class App extends React.Component {
   }
 
   handleMessageWordPress = (word) => {
+    getDefition(word)
+      .then((result) => console.log(result))
+      .catch(err => console.error(err))
     this.setState({
       showMessageWordDefinition: true,
       messageWordDefinition: word,
