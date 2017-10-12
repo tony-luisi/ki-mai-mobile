@@ -1,14 +1,23 @@
 import React from 'react';
-import { StyleSheet, Text, View, TextInput, Button } from 'react-native';
+import { StyleSheet, Text, View, TextInput, Button, FlatList } from 'react-native';
 import SocketIOClient from 'socket.io-client';
 import {GiftedChat} from 'react-native-gifted-chat';
 import KeyboardSpacer from 'react-native-keyboard-spacer';
 import {checkWord, suggestWords, getDefition} from './api'
+import WordDefinitions from "./WordDefinitions";
+import {
+  StackNavigator,
+} from 'react-navigation'
 
-export default class App extends React.Component {
+
+class MainScreen extends React.Component {
+  static navigationOptions = {
+    title: 'Kī Mai',
+  };
   constructor(props) {
     super(props)
     this.state = {
+      userId: null,
       input: "",
       messages: [],
       inputSpellcheck: [],
@@ -22,6 +31,11 @@ export default class App extends React.Component {
     }
     this.socket = SocketIOClient('http://kimaiserver.herokuapp.com');
     this.socket.on('test', this.addMessage)
+    this.socket.on('connect', () => {
+      this.setState({
+        userId: this.socket.id
+      })
+    })
   }
   componentWillMount() {
     this.setState({
@@ -41,20 +55,19 @@ export default class App extends React.Component {
   }
 
   onSend(messages = []) {
+    this.socket.emit('test', messages)
+  }
+
+  addMessage = (messages) => {
     this.setState((previousState) => ({
       messages: GiftedChat.append(previousState.messages, messages),
     }));
   }
 
-  addMessage = (message) => {
-    const messages = [...this.state.messages, message]
-    this.setState({
-      messages: messages
-    })
-  }
-
   handleTextInput = (text) => {
-    const words = text.split(" ").map((word, i) => {
+    const textWithoutPunc = text.replace(/[.,?\/#!$%\^&\*;:{}=\-_`~()]/g,"")
+    console.log(textWithoutPunc)
+    const words = textWithoutPunc.split(" ").map((word, i) => {
       if ((this.state.inputSpellcheck.length > i) && this.state.inputSpellcheck[i].word === word) {
         return this.state.inputSpellcheck[i]
       }
@@ -99,18 +112,10 @@ export default class App extends React.Component {
   }
 
   handleMessageWordPress = (word) => {
-    getDefition(word)
-      .then((result) => console.log(result))
-      .catch(err => console.error(err))
-    this.setState({
-      showMessageWordDefinition: true,
-      messageWordDefinition: word,
-      showSuggestions: false
-    })
+    this.props.navigation.navigate("WordDefinitions", {word})
   }
 
   handleWordSuggestion = (word, suggestions = [], i) => {
-    console.log(suggestions)
     if (suggestions.length > 0) {
       this.setState({
         footerWords: suggestions,
@@ -133,7 +138,16 @@ export default class App extends React.Component {
           )
         })}
         {this.state.showMessageWordDefinition &&
-            <Text style={{fontSize: 20, padding: 10}}>{this.state.messageWordDefinition}</Text>
+            <FlatList
+              data={[{key: 'a'}, {key: 'b'}]}
+              renderItem={(item) => {
+                console.log('rendering item')
+                return (
+                  <Text style={{fontSize: 20, padding: 10}}>{item.key}</Text>
+                )
+              }
+              }
+            />
         }
         </View>
       )
@@ -163,12 +177,11 @@ export default class App extends React.Component {
   render() {
     return (
       <View style={styles.container}>
-          <Text style={styles.title}>Kī Mai</Text>
           <GiftedChat
             messages={this.state.messages}
             onSend={(messages) => this.onSend(messages)}
             user={{
-              _id: 1,
+              _id: this.state.userId,
             }}
             renderFooter={this.renderFooter}
             renderChatFooter={this.renderChatFooter}
@@ -198,6 +211,7 @@ const styles = StyleSheet.create({
   },
   footer: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     padding: 10
   },
   footerTextCorrect: {
@@ -210,3 +224,10 @@ const styles = StyleSheet.create({
     padding: 10
   }
 });
+
+const App = StackNavigator({
+  Main: {screen: MainScreen},
+  WordDefinitions: {screen: WordDefinitions}
+});
+
+export default App;
